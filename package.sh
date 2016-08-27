@@ -22,19 +22,24 @@ BUILD_TARGET=${1:-none}
 ##Do we need to create the final archive
 ARCHIVE_FOR_DISTRIBUTION=1
 ##Which version name are we appending to the final archive
-export BUILD_NAME=15.04
+export BUILD_NAME=15.04.6
 TARGET_DIR=Cura-${BUILD_NAME}-${BUILD_TARGET}
 
 ##Which versions of external programs to use
 WIN_PORTABLE_PY_VERSION=2.7.2.1
 
 ##Which CuraEngine to use
-if [ -z ${CURA_ENGINE_REPO:-} ] ; then
+if [ -z ${CURA_ENGINE_REPO:-} ]; then
 	CURA_ENGINE_REPO="https://github.com/Ultimaker/CuraEngine.git"
 fi
-if [ -z ${CURA_ENGINE_REPO_PUSHURL:-} ] ; then
+if [ -z ${CURA_ENGINE_REPO_PUSHURL:-} ]; then
 	CURA_ENGINE_REPO_PUSHURL="git@github.com:Ultimaker/CuraEngine.git"
 fi
+if [ -z ${CURA_ENGINE_BRANCH:-} ]; then
+	CURA_ENGINE_BRANCH="legacy"
+fi
+
+JOBS=${JOBS:-3}
 
 #############################
 # Support functions
@@ -81,10 +86,17 @@ function gitClone
 		cd $3
 		git clean -dfx
 		git reset --hard
+		if [ ! -z "${4-}" ]; then
+			git checkout $4
+		fi
 		git pull
 		cd -
 	else
-		git clone $1 $3
+		if [ ! -z "${4-}" ]; then
+			git clone $1 $3 --branch $4
+		else
+			git clone $1 $3
+		fi
 		git config remote.origin.pushurl "$2"
 	fi
 }
@@ -140,11 +152,13 @@ if [ -d "C:/arduino-1.0.3" ]; then
 	ARDUINO_VERSION=103
 elif [ -d "/Applications/Arduino.app/Contents/Resources/Java" ]; then
 	ARDUINO_PATH=/Applications/Arduino.app/Contents/Resources/Java
-	ARDUINO_VERSION=105
+	ARDUINO_VERSION=$(defaults read /Applications/Arduino.app/Contents/Info.plist CFBundleGetInfoString | sed -e 's/\.//g')
+	PATH=$PATH:/Applications/Arduino.app/Contents/Resources/Java/hardware/tools/avr/bin/
 else
 	ARDUINO_PATH=/usr/share/arduino
 	ARDUINO_VERSION=105
 fi
+
 
 if [ ! -d "$ARDUINO_PATH" ]; then
   echo "Arduino path '$ARDUINO_PATH' doesn't exist"
@@ -160,22 +174,22 @@ gitClone \
 cd _UltimakerMarlin/Marlin
 git checkout Marlin_v1
 git pull
-$MAKE -j 3 HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_250000 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_single\"' BAUDRATE=250000 TEMP_SENSOR_1=0 EXTRUDERS=1"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_115200 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_single\"' BAUDRATE=115200 TEMP_SENSOR_1=0 EXTRUDERS=1"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Dual_250000 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_dual\"' BAUDRATE=250000 TEMP_SENSOR_1=-1 EXTRUDERS=2"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Dual_115200 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_dual\"' BAUDRATE=115200 TEMP_SENSOR_1=-1 EXTRUDERS=2"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_250000 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_single\"' BAUDRATE=250000 TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_115200 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_single\"' BAUDRATE=115200 TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Dual_250000 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_dual\"' BAUDRATE=250000 TEMP_SENSOR_1=-1 EXTRUDERS=2"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Dual_115200 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_dual\"' BAUDRATE=115200 TEMP_SENSOR_1=-1 EXTRUDERS=2"
 git checkout Marlin_UM_HeatedBedUpgrade
 git pull
-$MAKE -j 3 HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_HBK_250000 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_single_HB\"' BAUDRATE=250000 TEMP_SENSOR_1=0 EXTRUDERS=1"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_HBK_115200 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_single_HB\"' BAUDRATE=115200 TEMP_SENSOR_1=0 EXTRUDERS=1"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_HBK_Dual_250000 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_dual_HB\"' BAUDRATE=250000 TEMP_SENSOR_1=-1 EXTRUDERS=2"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_HBK_Dual_115200 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_dual_HB\"' BAUDRATE=115200 TEMP_SENSOR_1=-1 EXTRUDERS=2"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_HBK_250000 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_single_HB\"' BAUDRATE=250000 TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_HBK_115200 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_single_HB\"' BAUDRATE=115200 TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_HBK_Dual_250000 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_dual_HB\"' BAUDRATE=250000 TEMP_SENSOR_1=-1 EXTRUDERS=2"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=7 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_HBK_Dual_115200 DEFINES="'VERSION_BASE=\"Ultimaker:_${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_dual_HB\"' BAUDRATE=115200 TEMP_SENSOR_1=-1 EXTRUDERS=2"
 git checkout Marlin_UM_Original_Plus
 git pull
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Plus_250000 DEFINES="'VERSION_BASE=\"Ultimaker+:${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_single\"' BAUDRATE=250000 TEMP_SENSOR_1=0 EXTRUDERS=1"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Plus_115200 DEFINES="'VERSION_BASE=\"Ultimaker+:${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_single\"' BAUDRATE=115200 TEMP_SENSOR_1=0 EXTRUDERS=1"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Plus_Dual_250000 DEFINES="'VERSION_BASE=\"Ultimaker+:${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_dual\"' BAUDRATE=250000 TEMP_SENSOR_1=20 EXTRUDERS=2"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Plus_Dual_115200 DEFINES="'VERSION_BASE=\"Ultimaker+:${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_dual\"' BAUDRATE=115200 TEMP_SENSOR_1=20 EXTRUDERS=2"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Plus_250000 DEFINES="'VERSION_BASE=\"Ultimaker+:${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_single\"' BAUDRATE=250000 TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Plus_115200 DEFINES="'VERSION_BASE=\"Ultimaker+:${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_single\"' BAUDRATE=115200 TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Plus_Dual_250000 DEFINES="'VERSION_BASE=\"Ultimaker+:${BUILD_NAME}\"' 'VERSION_PROFILE=\"250000_dual\"' BAUDRATE=250000 TEMP_SENSOR_1=20 EXTRUDERS=2"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_UltimakerMarlin_Plus_Dual_115200 DEFINES="'VERSION_BASE=\"Ultimaker+:${BUILD_NAME}\"' 'VERSION_PROFILE=\"115200_dual\"' BAUDRATE=115200 TEMP_SENSOR_1=20 EXTRUDERS=2"
 cd -
 
 gitClone \
@@ -185,15 +199,28 @@ gitClone \
 cd _Ultimaker2Marlin/Marlin
 git checkout master
 git pull
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2 DEFINES="'STRING_CONFIG_H_AUTHOR=\"Version:_${BUILD_NAME}\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2Dual DEFINES="'STRING_CONFIG_H_AUTHOR=\"Version:_${BUILD_NAME}\"' TEMP_SENSOR_1=20 EXTRUDERS=2"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2 DEFINES="'STRING_CONFIG_H_AUTHOR=\"Vers:_${BUILD_NAME}\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2Dual DEFINES="'STRING_CONFIG_H_AUTHOR=\"Vers:_${BUILD_NAME}\"' TEMP_SENSOR_1=20 EXTRUDERS=2"
 git checkout UM2go
 git pull
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2go DEFINES="'STRING_CONFIG_H_AUTHOR=\"Version:_${BUILD_NAME}go\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2go DEFINES="'STRING_CONFIG_H_AUTHOR=\"Vers:_${BUILD_NAME}go\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
 git checkout UM2extended
 git pull
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2extended DEFINES="'STRING_CONFIG_H_AUTHOR=\"Version:_${BUILD_NAME}ex\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
-$MAKE -j 3 HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2extendedDual DEFINES="'STRING_CONFIG_H_AUTHOR=\"Version:_${BUILD_NAME}ex\"' TEMP_SENSOR_1=20 EXTRUDERS=2"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2extended DEFINES="'STRING_CONFIG_H_AUTHOR=\"Vers:_${BUILD_NAME}ex\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2extendedDual DEFINES="'STRING_CONFIG_H_AUTHOR=\"Vers:_${BUILD_NAME}ex\"' TEMP_SENSOR_1=20 EXTRUDERS=2"
+cd -
+
+gitClone \
+  https://github.com/Ultimaker/UM2.1-Firmware.git \
+  git@github.com:Ultimaker/UM2.1-Firmware.git \
+  _Ultimaker2PlusMarlin
+cd _Ultimaker2PlusMarlin/Marlin
+git checkout UM2.1_JarJar
+git pull
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2Plus DEFINES="'STRING_CONFIG_H_AUTHOR=\"Vers:_${BUILD_NAME}\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
+git checkout UM2.1_JarJarExtended
+git pull
+$MAKE -j ${JOBS} HARDWARE_MOTHERBOARD=72 ARDUINO_INSTALL_DIR=${ARDUINO_PATH} ARDUINO_VERSION=${ARDUINO_VERSION} BUILD_DIR=_Ultimaker2PlusExtended DEFINES="'STRING_CONFIG_H_AUTHOR=\"Vers:_${BUILD_NAME}ex\"' TEMP_SENSOR_1=0 EXTRUDERS=1"
 cd -
 
 cp _UltimakerMarlin/Marlin/_UltimakerMarlin_250000/Marlin.hex resources/firmware/MarlinUltimaker-250000.hex
@@ -208,11 +235,15 @@ cp _UltimakerMarlin/Marlin/_UltimakerMarlin_Plus_250000/Marlin.hex resources/fir
 cp _UltimakerMarlin/Marlin/_UltimakerMarlin_Plus_115200/Marlin.hex resources/firmware/MarlinUltimaker-UMOP-115200.hex
 cp _UltimakerMarlin/Marlin/_UltimakerMarlin_Plus_Dual_250000/Marlin.hex resources/firmware/MarlinUltimaker-UMOP-250000-dual.hex
 cp _UltimakerMarlin/Marlin/_UltimakerMarlin_Plus_Dual_115200/Marlin.hex resources/firmware/MarlinUltimaker-UMOP-115200-dual.hex
+
 cp _Ultimaker2Marlin/Marlin/_Ultimaker2/Marlin.hex resources/firmware/MarlinUltimaker2.hex
 cp _Ultimaker2Marlin/Marlin/_Ultimaker2Dual/Marlin.hex resources/firmware/MarlinUltimaker2-dual.hex
 cp _Ultimaker2Marlin/Marlin/_Ultimaker2go/Marlin.hex resources/firmware/MarlinUltimaker2go.hex
 cp _Ultimaker2Marlin/Marlin/_Ultimaker2extended/Marlin.hex resources/firmware/MarlinUltimaker2extended.hex
 cp _Ultimaker2Marlin/Marlin/_Ultimaker2extendedDual/Marlin.hex resources/firmware/MarlinUltimaker2extended-dual.hex
+
+cp _Ultimaker2PlusMarlin/Marlin/_Ultimaker2Plus/Marlin.hex resources/firmware/MarlinUltimaker2Plus.hex
+cp _Ultimaker2PlusMarlin/Marlin/_Ultimaker2PlusExtended/Marlin.hex resources/firmware/MarlinUltimaker2PlusExtended.hex
 
 #############################
 # Darwin
@@ -237,7 +268,8 @@ if [ "$BUILD_TARGET" = "darwin" ]; then
 	gitClone \
 	  ${CURA_ENGINE_REPO} \
 	  ${CURA_ENGINE_REPO_PUSHURL} \
-	  CuraEngine
+	  CuraEngine \
+	  ${CURA_ENGINE_BRANCH}
     if [ $? != 0 ]; then echo "Failed to clone CuraEngine"; exit 1; fi
 	$MAKE -C CuraEngine VERSION=${BUILD_NAME}
     if [ $? != 0 ]; then echo "Failed to build CuraEngine"; exit 1; fi
@@ -279,7 +311,8 @@ if [ "$BUILD_TARGET" = "freebsd" ]; then
 	gitClone \
 	  ${CURA_ENGINE_REPO} \
 	  ${CURA_ENGINE_REPO_PUSHURL} \
-	  CuraEngine
+	  CuraEngine \
+	  ${CURA_ENGINE_BRANCH}
     if [ $? != 0 ]; then echo "Failed to clone CuraEngine"; exit 1; fi
 	gmake -j4 -C CuraEngine VERSION=${BUILD_NAME}
     if [ $? != 0 ]; then echo "Failed to build CuraEngine"; exit 1; fi
@@ -331,7 +364,8 @@ if [ "$BUILD_TARGET" = "debian_i386" ]; then
 	gitClone \
 	  ${CURA_ENGINE_REPO} \
 	  ${CURA_ENGINE_REPO_PUSHURL} \
-	  CuraEngine
+	  CuraEngine \
+	  ${CURA_ENGINE_BRANCH}
     if [ $? != 0 ]; then echo "Failed to clone CuraEngine"; exit 1; fi
 	$MAKE -C CuraEngine VERSION=${BUILD_NAME}
     if [ $? != 0 ]; then echo "Failed to build CuraEngine"; exit 1; fi
@@ -368,7 +402,8 @@ if [ "$BUILD_TARGET" = "debian_amd64" ]; then
 	gitClone \
 	  ${CURA_ENGINE_REPO} \
 	  ${CURA_ENGINE_REPO_PUSHURL} \
-	  CuraEngine
+	  CuraEngine \
+	  ${CURA_ENGINE_BRANCH}
     if [ $? != 0 ]; then echo "Failed to clone CuraEngine"; exit 1; fi
 	$MAKE -C CuraEngine VERSION=${BUILD_NAME}
     if [ $? != 0 ]; then echo "Failed to build CuraEngine"; exit 1; fi
@@ -405,7 +440,8 @@ if [ "$BUILD_TARGET" = "debian_armhf" ]; then
 	gitClone \
 	  ${CURA_ENGINE_REPO} \
 	  ${CURA_ENGINE_REPO_PUSHURL} \
-	  CuraEngine
+	  CuraEngine \
+	  ${CURA_ENGINE_BRANCH}
     if [ $? != 0 ]; then echo "Failed to clone CuraEngine"; exit 1; fi
 	$MAKE -C CuraEngine VERSION=${BUILD_NAME}
     if [ $? != 0 ]; then echo "Failed to build CuraEngine"; exit 1; fi
@@ -606,7 +642,7 @@ if [ $BUILD_TARGET = "win32" ]; then
 	else
 		CXX=i686-w64-mingw32-g++
 	fi
-	
+
 	#For windows extract portable python to include it.
 	extract PortablePython_${WIN_PORTABLE_PY_VERSION}.exe \$_OUTDIR/App
 	extract PortablePython_${WIN_PORTABLE_PY_VERSION}.exe \$_OUTDIR/Lib/site-packages
@@ -633,7 +669,7 @@ if [ $BUILD_TARGET = "win32" ]; then
 	#mv ffmpeg-20120927-git-13f0cd6-win32-static/bin/ffmpeg.exe ${TARGET_DIR}/Cura/
 	#mv ffmpeg-20120927-git-13f0cd6-win32-static/licenses ${TARGET_DIR}/Cura/ffmpeg-licenses/
 	mv Win32/EjectMedia.exe ${TARGET_DIR}/Cura/
-	
+
 	rm -rf Power/
 	rm -rf \$_OUTDIR
 	rm -rf PURELIB
